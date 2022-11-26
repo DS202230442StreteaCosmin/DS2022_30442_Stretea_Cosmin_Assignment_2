@@ -1,0 +1,43 @@
+version: '3.8'
+services:
+    client:
+        build: ./client
+        hostname: client
+        restart: always
+        depends_on:
+            - api
+
+    postgres:
+        hostname: postgres
+        image: postgres:14.1-alpine
+        restart: always
+        volumes:
+            - ./postgresql:/var/lib/postgresql
+        environment:
+            - POSTGRES_USER=postgres
+            - POSTGRES_PASSWORD=root
+            - POSTGRES_DB=ds-a1
+
+            # - POSTGRES_HOST_AUTH_METHOD=trust
+        ports:
+            - 5432:5432
+
+    api:
+        build: ./server
+        hostname: api
+        restart: always
+        environment:
+            - NODE_ENV=production
+        depends_on:
+            - postgres
+        ports:
+            - 8000:8000
+
+    nginx:
+        depends_on:
+            - client
+            - api
+        restart: always
+        build: ./nginx
+        ports:
+            - 80:80
