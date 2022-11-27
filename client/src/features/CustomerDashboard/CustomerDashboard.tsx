@@ -5,12 +5,15 @@ import { useNavigate } from 'react-router-dom';
 
 import { DatePicker } from '@mui/x-date-pickers';
 import dayjs, { Dayjs } from 'dayjs';
-import { Bar, BarChart, Legend, Tooltip, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, Cell, Legend, Tooltip, XAxis, YAxis } from 'recharts';
 import { useLazyDeviceConsumptionsQuery } from '../../services/device/device';
 import { Consumption, Device } from '../../services/device/model';
 import { useUserDevicesQuery } from '../../services/user/user';
 import { useAppDispatch, useAppSelector } from '../../store/store';
 import { logout } from '../../store/user/userSlice';
+import { websocket as W3CWebSocket } from 'websocket';
+
+const client = new W3CWebSocket('ws://127.0.0.1:8111');
 
 const CustomerDashboard = () => {
     const currentUser = useAppSelector((state) => state.userState.user);
@@ -25,7 +28,7 @@ const CustomerDashboard = () => {
     const [
         triggerDeviceConsumptions,
         { data: deviceConsumptions, isFetching: areConsumptionsFetching },
-    ] = useLazyDeviceConsumptionsQuery();
+    ] = useLazyDeviceConsumptionsQuery({ pollingInterval: 5000 });
 
     const dispatch = useAppDispatch();
     const navigate = useNavigate();
@@ -58,6 +61,16 @@ const CustomerDashboard = () => {
 
         getChartDataFromConsumptions([]);
     }, [currentDevice, dateInterval]);
+
+    React.useEffect(() => {
+        client.onopen = () => {
+            console.log('WebSocket Client Connected');
+        };
+
+        client.onmessage = (message: any) => {
+            console.log(message);
+        };
+    }, []);
 
     const getChartDataFromConsumptions = (consumptions: Consumption[]) => {
         let hourDataMapping = new Map<string, number>();
@@ -153,7 +166,22 @@ const CustomerDashboard = () => {
                             <YAxis />
                             <Tooltip />
                             <Legend />
-                            <Bar dataKey='consumption' fill='#8884d8' />
+                            <Bar dataKey='consumption' fill='#8884d8'>
+                                {getChartDataFromConsumptions(
+                                    deviceConsumptions
+                                ).map((e) => (
+                                    <Cell
+                                        key={e.hour}
+                                        fill={
+                                            currentDevice &&
+                                            e.consumption >
+                                                currentDevice.maxHourlyConsumption
+                                                ? '#ff0000'
+                                                : '#8884d8'
+                                        }
+                                    />
+                                ))}
+                            </Bar>
                         </BarChart>
                     )}
                 </Box>

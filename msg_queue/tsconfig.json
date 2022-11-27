@@ -1,14 +1,24 @@
 {
     "compilerOptions": {
+        "experimentalDecorators": true,
         "esModuleInterop": true,
         "target": "es6",
+        // "target": "es5",
         "noImplicitAny": true,
         "moduleResolution": "node",
         "sourceMap": true,
         "outDir": "dist",
-        "baseUrl": ".",
+        "baseUrl": "./",
+        "rootDir": "./",
         "paths": {
             "*": ["node_modules/*"]
-        }
-    }
+        },
+        "types": ["node"],
+
+        "lib": ["es5", "es6", "dom"],
+        "module": "commonjs",
+        "emitDecoratorMetadata": true
+    },
+    "include": ["src/**/*", "app.ts", ".env"],
+    "exclude": ["node_modules", "src/**/*.spec.ts"]
 }

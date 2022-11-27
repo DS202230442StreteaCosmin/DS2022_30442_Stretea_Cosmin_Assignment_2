@@ -27,7 +27,7 @@ const getMessageObject = (
     return {
         timestamp,
         device_id: _deviceId,
-        measurement_value: consumption,
+        measurement_value: Math.round(consumption),
     };
 };
 
@@ -75,7 +75,7 @@ const handleDataSend = async (consumptions: any[]) => {
                     Buffer.from(JSON.stringify(responseObjet))
                 );
                 console.log(' [x] Sent %s', responseObjet);
-                await sleep(1000);
+                await sleep(10000);
             }
         });
     });

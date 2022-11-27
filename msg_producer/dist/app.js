@@ -34,7 +34,7 @@ const getMessageObject = (_deviceId, timestamp, consumption) => {
     return {
         timestamp,
         device_id: _deviceId,
-        measurement_value: consumption,
+        measurement_value: Math.round(consumption),
     };
 };
 const normalizeCsvData = (_csvConsumptions) => {
@@ -72,7 +72,7 @@ const handleDataSend = (consumptions) => __awaiter(void 0, void 0, void 0, funct
                         const responseObjet = getMessageObject(deviceId, new Date().getTime(), consumption);
                         channel.sendToQueue(queue, Buffer.from(JSON.stringify(responseObjet)));
                         console.log(' [x] Sent %s', responseObjet);
-                        yield sleep(1000);
+                        yield sleep(10000);
                     }
                     finally {
                         _d = true;
