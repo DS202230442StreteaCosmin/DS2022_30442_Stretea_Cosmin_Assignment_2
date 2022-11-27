@@ -55,6 +55,18 @@ let dbInitialized = false;
 //     handleDataRow(readStream);
 // });
 
+wss.on('connection', function connection(ws) {
+    // ws.on('message', function message(data, isBinary) {
+    //   wss.clients.forEach(function each(client) {
+    //     if (client !== ws && client.readyState === WebSocket.OPEN) {
+    //       client.send(data, { binary: isBinary });
+    //     }
+    //   });
+    // });
+
+    console.log('[!] WebSocket connection established');
+});
+
 myDataSource
     .initialize()
     .then(() => {
@@ -119,7 +131,7 @@ const handleOnMessage = async (msg: amqp.Message) => {
             }
         );
     } else {
-        currentConsumptionValue = availableConsumption.value;
+        currentConsumptionValue = response.measurement_value;
 
         const createdConsumption = ConsumptionRepository.create({
             timestamp: startHourDate,
@@ -134,11 +146,8 @@ const handleOnMessage = async (msg: amqp.Message) => {
     );
 
     if (currentConsumptionValue > maxHourlyConsumption) {
-        // wss.emit('event', {
-        //     deviceId: currentDevice.id,
-        //     deviceName: currentDevice.name,
-        //     currentConsumptionValue: currentConsumptionValue,
-        // });
+        console.log('[!] Sending alert to client');
+
         wss.clients.forEach((client) =>
             client.send(
                 JSON.stringify({

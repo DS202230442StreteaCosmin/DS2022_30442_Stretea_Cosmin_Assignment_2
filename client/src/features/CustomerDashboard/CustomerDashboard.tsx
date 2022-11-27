@@ -1,4 +1,4 @@
-import { Box, TextField } from '@mui/material';
+import { Box, Snackbar, TextField } from '@mui/material';
 import Autocomplete from '@mui/material/Autocomplete';
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -11,12 +11,23 @@ import { Consumption, Device } from '../../services/device/model';
 import { useUserDevicesQuery } from '../../services/user/user';
 import { useAppDispatch, useAppSelector } from '../../store/store';
 import { logout } from '../../store/user/userSlice';
-import { websocket as W3CWebSocket } from 'websocket';
+import Alert from '../../components/Alert/Alert';
+// import { websocket as W3CWebSocket } from 'websocket';
 
-const client = new W3CWebSocket('ws://127.0.0.1:8111');
+// const client = new W3CWebSocket('ws://127.0.0.1:8111');
+
+const client = new WebSocket('ws://localhost:8111');
 
 const CustomerDashboard = () => {
     const currentUser = useAppSelector((state) => state.userState.user);
+    const [showAlert, setShowAlert] = React.useState(false);
+    const currentAlertDevice = React.useRef<any>(null);
+    const devicesAlertIds = React.useRef<string[]>([]);
+    console.log(
+        '🚀 ~ file: CustomerDashboard.tsx ~ line 26 ~ CustomerDashboard ~ devicesAlertIds',
+        devicesAlertIds
+    );
+
     const [dateInterval, setDateInterval] = React.useState<
         { start: string; end: string } | undefined
     >(undefined);
@@ -69,6 +80,13 @@ const CustomerDashboard = () => {
 
         client.onmessage = (message: any) => {
             console.log(message);
+            const data = JSON.parse(message.data);
+
+            if (devicesAlertIds.current.indexOf(data.deviceId) < 0) {
+                devicesAlertIds.current.push(data.deviceId);
+                currentAlertDevice.current = data;
+                setShowAlert(true);
+            }
         };
     }, []);
 
@@ -186,6 +204,22 @@ const CustomerDashboard = () => {
                     )}
                 </Box>
             </Box>
+            <Snackbar
+                anchorOrigin={{
+                    horizontal: 'center',
+                    vertical: 'top',
+                }}
+                open={showAlert}
+                onClose={() => setShowAlert(false)}
+            >
+                <Alert
+                    onClose={() => setShowAlert(false)}
+                    severity='error'
+                    sx={{ width: '100%' }}
+                >
+                    {`Device ${currentAlertDevice.current?.deviceName} has exceeded the maximum hourly consumption! Current consumption: ${currentAlertDevice.current?.currentConsumptionValue} kW`}
+                </Alert>
+            </Snackbar>
         </>
     );
 };

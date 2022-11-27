@@ -105,7 +105,7 @@ const handleOnMessage = (msg) => __awaiter(void 0, void 0, void 0, function* () 
         yield ConsumptionRepository.update({ id: availableConsumption.id }, Object.assign(Object.assign({}, availableConsumption), { value: availableConsumption.value + response.measurement_value }));
     }
     else {
-        currentConsumptionValue = availableConsumption.value;
+        currentConsumptionValue = response.measurement_value;
         const createdConsumption = ConsumptionRepository.create({
             timestamp: startHourDate,
             value: response.measurement_value,
