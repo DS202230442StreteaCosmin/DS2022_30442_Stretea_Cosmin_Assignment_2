@@ -6,7 +6,8 @@
         "prebuild": "tslint -c tslint.json -p tsconfig.json --fix",
         "build": "tsc",
         "prestart": "npm run build",
-        "start": "cp .env dist && node dist/app.js",
+        "start:dev": "npm run prestart && cp ./src/envs/.env.local ./.env && cp .env dist && node dist/app.js",
+        "start:prod": "cp ./src/envs/.env.production ./.env && mkdir -p ./dist && cp .env dist && node dist/app.js",
         "test": "echo \"Error: no test specified\" && exit 1"
     },
     "license": "MIT",
@@ -15,7 +16,6 @@
         "csv": "^6.2.3",
         "dotenv": "^16.0.3",
         "express": "^4.18.2",
-        "nodemon": "^2.0.20",
         "pg": "^8.8.0",
         "reflect-metadata": "^0.1.13",
         "typeorm": "^0.3.10",

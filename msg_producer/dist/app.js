@@ -49,7 +49,7 @@ const handleCloseConnection = () => {
     process.exit(0);
 };
 const handleDataSend = (consumptions) => __awaiter(void 0, void 0, void 0, function* () {
-    amqp.connect('amqp://localhost', (error0, connection) => __awaiter(void 0, void 0, void 0, function* () {
+    amqp.connect(process.env.QUEUE_URL, (error0, connection) => __awaiter(void 0, void 0, void 0, function* () {
         if (error0) {
             throw error0;
         }

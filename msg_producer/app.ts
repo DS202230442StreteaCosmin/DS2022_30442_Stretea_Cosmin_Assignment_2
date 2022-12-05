@@ -47,7 +47,7 @@ const handleCloseConnection = () => {
 };
 
 const handleDataSend = async (consumptions: any[]) => {
-    amqp.connect('amqp://localhost', async (error0, connection) => {
+    amqp.connect(process.env.QUEUE_URL, async (error0, connection) => {
         if (error0) {
             throw error0;
         }

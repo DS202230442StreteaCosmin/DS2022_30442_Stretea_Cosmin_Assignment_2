@@ -16,10 +16,9 @@ import Alert from '../../components/Alert/Alert';
 
 // const client = new W3CWebSocket('ws://127.0.0.1:8111');
 
-const client = new WebSocket('ws://localhost:8111');
-
 const CustomerDashboard = () => {
     const currentUser = useAppSelector((state) => state.userState.user);
+    const clientRef = React.useRef<WebSocket | null>(null);
     const [showAlert, setShowAlert] = React.useState(false);
     const currentAlertDevice = React.useRef<any>(null);
     const devicesAlertIds = React.useRef<string[]>([]);
@@ -74,11 +73,19 @@ const CustomerDashboard = () => {
     }, [currentDevice, dateInterval]);
 
     React.useEffect(() => {
-        client.onopen = () => {
+        if (!currentDevice) {
+            return;
+        }
+
+        clientRef.current = new WebSocket(
+            'ws://localhost:8111/' + currentDevice.id
+        );
+
+        clientRef.current.onopen = () => {
             console.log('WebSocket Client Connected');
         };
 
-        client.onmessage = (message: any) => {
+        clientRef.current.onmessage = (message: any) => {
             console.log(message);
             const data = JSON.parse(message.data);
 
@@ -88,7 +95,7 @@ const CustomerDashboard = () => {
                 setShowAlert(true);
             }
         };
-    }, []);
+    }, [currentDevice]);
 
     const getChartDataFromConsumptions = (consumptions: Consumption[]) => {
         let hourDataMapping = new Map<string, number>();

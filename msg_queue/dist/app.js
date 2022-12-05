@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const dotenv_1 = __importDefault(require("dotenv")); // see https://github.com/motdotla/dotenv#how-do-i-use-dotenv-with-import
+const dotenv_1 = __importDefault(require("dotenv"));
 dotenv_1.default.config();
 require("reflect-metadata");
 const callback_api_1 = __importDefault(require("amqplib/callback_api"));
@@ -22,41 +22,18 @@ const device_entity_1 = require("./src/entities/device.entity");
 const typeorm_1 = require("typeorm");
 const ws_1 = __importDefault(require("ws"));
 const wss = new ws_1.default.Server({ port: 8111 });
-// wss.on('connection', (ws, r) => {
-//     ws.send('This is a message to client');
-// });
 let dbInitialized = false;
-// const app = express();
-// const PORT = 1234;
-// const sleep = (ms: number) => {
-//     return new Promise((resolve) => {
-//         setTimeout(resolve, ms);
-//     });
-// };
-// const handleDataRow = async (readable: Parser) => {
-//     for await (const chunk of readable) {
-//         console.log(chunk);
-//         await sleep(1000);
-//     }
-// };
-// app.listen(PORT, () => {
-//     // if (!error)
-//     console.debug(
-//         'Server is Successfully Running, and App is listening on port ' + PORT
-//     );
-//     // else console.debug("Error occurred, server can't start", error);
-//     const readStream = fs
-//         .createReadStream('./sensor.csv')
-//         .pipe(parse({ delimiter: ',' }));
-//     readStream.on('data', async (row) => {
-//         await sleep(8000);
-//         console.log(row);
-//         // setTimeout(() => {
-//         //     // console.log(row);
-//         // }, 1000);
-//     });
-//     handleDataRow(readStream);
-// });
+const clients = new Map();
+wss.on('connection', function connection(wsConnection, req) {
+    if (req.url) {
+        const parsedId = req.url.substring(1);
+        clients.set(parsedId, wsConnection);
+        console.log('[!] WebSocket connection established with id ' + parsedId);
+    }
+    else {
+        console.log('[!] WebSocket connection established without id');
+    }
+});
 app_data_source_1.myDataSource
     .initialize()
     .then(() => {
@@ -85,14 +62,6 @@ const handleOnMessage = (msg) => __awaiter(void 0, void 0, void 0, function* () 
     const startHourDate = new Date(startHourNumber);
     const endHourNumber = new Date(response.timestamp).setMinutes(59, 59, 999);
     const endHourDate = new Date(endHourNumber);
-    // console.log(
-    //     '🚀 ~ file: app.ts ~ line 63 ~ handleOnMessage ~ response',
-    //     response
-    // );
-    // const device = await DeviceRepository.findOneOrFail({
-    //     where: { id: response.device_id },
-    // });
-    // const newConsumptionDate = new Date(response.measurement_time);
     const availableConsumption = yield ConsumptionRepository.findOne({
         where: {
             device: { id: response.device_id },
@@ -113,28 +82,23 @@ const handleOnMessage = (msg) => __awaiter(void 0, void 0, void 0, function* () 
         });
         yield ConsumptionRepository.save(createdConsumption);
     }
-    console.log('🚀 ~ file: app.ts ~ line 70 ~ handleOnMessage ~ availableConsumption', availableConsumption);
     if (currentConsumptionValue > maxHourlyConsumption) {
-        // wss.emit('event', {
-        //     deviceId: currentDevice.id,
-        //     deviceName: currentDevice.name,
-        //     currentConsumptionValue: currentConsumptionValue,
-        // });
-        wss.clients.forEach((client) => client.send(JSON.stringify({
-            deviceId: currentDevice.id,
-            deviceName: currentDevice.name,
-            currentConsumptionValue,
-        })));
+        console.log('[!] Sending alert to client ' + currentDevice.id);
+        if (clients.has(currentDevice.id)) {
+            clients.get(currentDevice.id).send(JSON.stringify({
+                deviceId: currentDevice.id,
+                deviceName: currentDevice.name,
+                currentConsumptionValue,
+            }));
+        }
+        else {
+            console.log('[!] Client not found');
+            return;
+        }
     }
-    // if (device) {
-    //     console.log(
-    //         '🚀 ~ file: app.ts ~ line 61 ~ handleOnMessage ~ device',
-    //         device
-    //     );
-    // }
     console.log(' [x] Received %s', response);
 });
-callback_api_1.default.connect('amqp://localhost', function (error0, connection) {
+callback_api_1.default.connect(process.env.QUEUE_URL, function (error0, connection) {
     if (error0) {
         throw error0;
     }
