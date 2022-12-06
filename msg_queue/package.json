@@ -7,7 +7,7 @@
         "build": "tsc",
         "prestart": "npm run build",
         "start:dev": "npm run prestart && cp ./src/envs/.env.local ./.env && cp .env dist && node dist/app.js",
-        "start:prod": "cp ./src/envs/.env.production ./.env && mkdir -p ./dist && cp .env dist && node dist/app.js",
+        "start:prod": "npm run prestart && cp ./src/envs/.env.production ./.env && cp .env dist && node dist/app.js",
         "test": "echo \"Error: no test specified\" && exit 1"
     },
     "license": "MIT",

@@ -1,5 +1,13 @@
 version: '3.8'
 services:
+    queue:
+        build: ./msg_queue
+        hostname: queue
+        restart: always
+        depends_on:
+            - rabbitmq
+        ports:
+            - 8111:8111
     client:
         build: ./client
         hostname: client
@@ -7,20 +15,20 @@ services:
         depends_on:
             - api
 
-    postgres:
-        hostname: postgres
-        image: postgres:14.1-alpine
-        restart: always
-        volumes:
-            - ./postgresql:/var/lib/postgresql
-        environment:
-            - POSTGRES_USER=postgres
-            - POSTGRES_PASSWORD=root
-            - POSTGRES_DB=ds-a1
+    # postgres:
+    #     hostname: postgres
+    #     image: postgres:14.1-alpine
+    #     restart: always
+    #     volumes:
+    #         - ./postgresql:/var/lib/postgresql
+    #     environment:
+    #         - POSTGRES_USER=postgres
+    #         - POSTGRES_PASSWORD=root
+    #         - POSTGRES_DB=ds-a1
 
-            # - POSTGRES_HOST_AUTH_METHOD=trust
-        ports:
-            - 5432:5432
+    #         # - POSTGRES_HOST_AUTH_METHOD=trust
+    #     ports:
+    #         - 5432:5432
 
     api:
         build: ./server
@@ -28,8 +36,6 @@ services:
         restart: always
         environment:
             - NODE_ENV=production
-        depends_on:
-            - postgres
         ports:
             - 8000:8000
 
@@ -41,3 +47,10 @@ services:
         build: ./nginx
         ports:
             - 80:80
+
+    rabbitmq:
+        image: rabbitmq:3.11-management
+        hostname: rabbitmq
+        restart: always
+        ports:
+            - 5672:5672
