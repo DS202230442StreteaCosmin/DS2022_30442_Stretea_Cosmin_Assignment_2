@@ -9,3 +9,9 @@ In order execute the deployment of the application run the following command
 ```bash
 $ docker-compose up
 ```
+
+To start the message producer run the following command
+
+```bash
+$ yarn start:dev <device-id>
+```
