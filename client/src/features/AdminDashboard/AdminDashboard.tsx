@@ -3,6 +3,8 @@ import TabList from '@mui/lab/TabList';
 import { Box, Tab } from '@mui/material';
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import ChatContainer from '../../components/Chat/ChatContainer/ChatContainer';
+import FloatingChatButton from '../../components/Chat/FloatingChatButton/FloatingChatButton';
 import SearchBar from '../../components/SerchBar/SearchBar';
 import { AppRoutes } from '../../router/AppRoutes';
 import { clearSearch } from '../../store/search/searchSlice';
@@ -40,7 +42,7 @@ const AdminDashboard = () => {
     }, [currentRoute]);
 
     return (
-        <>
+        <Box sx={{ position: 'relative', height: '100vh' }}>
             <Box sx={{ width: '100%', typography: 'body1' }}>
                 <TabContext value={currentRoute}>
                     <Box
@@ -83,7 +85,8 @@ const AdminDashboard = () => {
                     </TabPanel>
                 </TabContext>
             </Box>
-        </>
+            <ChatContainer />
+        </Box>
     );
 };
 
