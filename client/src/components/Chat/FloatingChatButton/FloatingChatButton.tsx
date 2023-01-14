@@ -3,11 +3,13 @@ import { Box, Button } from '@mui/material';
 
 interface Props {
     onClick: () => void;
+    disabled?: boolean;
 }
 
 const FloatingChatButton = (props: Props) => {
     return (
         <Button
+            disabled={props.disabled}
             sx={{
                 backgroundColor: 'rgba(0,0,0,0.2)',
                 boxShadow: '0 0 50px rgba(0,0,0,0.4)',

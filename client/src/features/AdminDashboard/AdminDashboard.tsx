@@ -7,6 +7,14 @@ import ChatContainer from '../../components/Chat/ChatContainer/ChatContainer';
 import FloatingChatButton from '../../components/Chat/FloatingChatButton/FloatingChatButton';
 import SearchBar from '../../components/SerchBar/SearchBar';
 import { AppRoutes } from '../../router/AppRoutes';
+import { UserRoles } from '../../services/user/model';
+import {
+    addChatMessage,
+    ChatMessage,
+    setChatMessages,
+    setCurrentMessage,
+    setWSConnection,
+} from '../../store/general/generalSlice';
 import { clearSearch } from '../../store/search/searchSlice';
 import { useAppDispatch, useAppSelector } from '../../store/store';
 import { logout } from '../../store/user/userSlice';
@@ -19,6 +27,12 @@ const AdminDashboard = () => {
     const dispatch = useAppDispatch();
     const location = useLocation();
     const navigate = useNavigate();
+    const ws = useAppSelector((state) => state.generalState.wsConnection);
+    const currentUser = useAppSelector((state) => state.userState.user);
+
+    const currentMessage = useAppSelector(
+        (state) => state.generalState.currentMessage
+    );
 
     const [currentRoute, setCurrentRoute] = React.useState(
         '/admin-dashboard/users'
@@ -40,6 +54,16 @@ const AdminDashboard = () => {
     React.useEffect(() => {
         dispatch(clearSearch());
     }, [currentRoute]);
+
+    // sending message function
+
+    // const scrollTarget = useRef(null);
+
+    // React.useEffect(() => {
+    //     if (scrollTarget.current) {
+    //         scrollTarget.current.scrollIntoView({ behavior: 'smooth' });
+    //     }
+    // }, [messages.length]);
 
     return (
         <Box sx={{ position: 'relative', height: '100vh' }}>
@@ -85,7 +109,7 @@ const AdminDashboard = () => {
                     </TabPanel>
                 </TabContext>
             </Box>
-            <ChatContainer />
+            <ChatContainer receiverRole={UserRoles.ADMIN} />
         </Box>
     );
 };

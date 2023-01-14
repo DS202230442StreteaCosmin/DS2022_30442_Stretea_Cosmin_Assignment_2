@@ -1,3 +1,6 @@
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import CloseIcon from '@mui/icons-material/Close';
+import SendIcon from '@mui/icons-material/Send';
 import {
     Avatar,
     Box,
@@ -7,50 +10,173 @@ import {
     TextField,
 } from '@mui/material';
 import React from 'react';
+import uuid from 'react-uuid';
+import { UserRoles } from '../../../services/device/model';
+import {
+    addAdminChatMessage,
+    addAdminClient,
+    addChatMessage,
+    ChatMessage,
+    ChatUser,
+    removeFromAdminClient,
+    setChatMessages,
+    setCurrentMessage,
+} from '../../../store/general/generalSlice';
+import { useAppDispatch, useAppSelector } from '../../../store/store';
 import FloatingChatButton from '../FloatingChatButton/FloatingChatButton';
-import CloseIcon from '@mui/icons-material/Close';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import SendIcon from '@mui/icons-material/Send';
+import { parseData, WSMessageType } from '../utils';
 import './Style.css';
 
-const messages = [
-    {
-        text: 'abcdasdadsfgsdfgsdfgsdfgsdfgsdfgsdfgsdfgdsfgsdfgsdfgsdfgsdfgsdfgsdfgsdfgsdfgsdfsdas',
-        id: 1,
-    },
-    {
-        text: 'pmpomrgpomweorgm',
-        id: 2,
-    },
-    {
-        text: 'dutenplma',
-        id: 3,
-    },
-    {
-        text: 'hai la pepeeeenoi',
-        id: 4,
-    },
-    {
-        text: 'vind audi',
-        id: 5,
-    },
-    {
-        text: 'dutenplma',
-        id: 6,
-    },
-    {
-        text: 'hai la pepeeeenoi',
-        id: 7,
-    },
-    {
-        text: 'vind audi',
-        id: 8,
-    },
-];
+export interface ChatProps {
+    receiverRole: UserRoles;
+}
 
-const ChatContainer = () => {
+const ChatContainer = (props: ChatProps) => {
+    const [currentChatUser, setCurrentChatUser] =
+        React.useState<ChatUser | null>(null);
+
+    const currentAdminChat = useAppSelector(
+        (state) =>
+            state.generalState.adminChat.find(
+                (item) => item.client.id === currentChatUser?.id
+            )?.messages
+    );
+    const [chatDisabled, setChatDisabled] = React.useState(false);
     const [showChat, setShowChat] = React.useState(false);
-    const [showConvo, setShowConvo] = React.useState(false);
+    const [showConvo, setShowConvo] = React.useState(
+        props.receiverRole === UserRoles.ADMIN ? false : true
+    );
+
+    const currentAdminClients = useAppSelector(
+        (state) => state.generalState.adminClients
+    );
+
+    const currentUser = useAppSelector((state) => state.userState.user);
+
+    const dispatch = useAppDispatch();
+
+    const chatMessages = useAppSelector(
+        (state) => state.generalState.chatMessages
+    );
+
+    const currentMessage = useAppSelector(
+        (state) => state.generalState.currentMessage
+    );
+
+    const ws = React.useRef<WebSocket | null>(null);
+
+    const sendMessage = () => {
+        if (currentMessage && ws.current) {
+            const newMessage: ChatMessage = {
+                id: currentUser?.id ?? '',
+                role: props.receiverRole,
+                message: currentMessage,
+            };
+            ws.current.send(
+                parseData(WSMessageType.MESSAGE, {
+                    ...newMessage,
+                    clientId: currentChatUser?.id,
+                })
+            );
+            dispatch(setCurrentMessage(''));
+        }
+    };
+
+    React.useEffect(() => {
+        console.log(currentUser);
+        ws.current = new WebSocket(
+            `ws://localhost:8080/${currentUser?.id ?? ''}/${
+                currentUser?.email ?? ''
+            }/${currentUser?.role ?? ''}`
+        );
+
+        ws.current.onopen = () => {
+            console.log('Connection opened');
+
+            // ws.current?.send(
+            //     parseData(WSMessageType.CONNECT, {
+            //         id: currentUser?.id ?? '',
+            //         name: currentUser?.name ?? '',
+            //         role: currentUser?.role ?? '',
+            //     })
+            // );
+            // setConnectionOpen(true);
+        };
+
+        ws.current.onmessage = (event) => {
+            const parsed = JSON.parse(event.data);
+
+            switch (parsed.type) {
+                case WSMessageType.ADMINS_NOT_AVAILABLE:
+                    setShowChat(false);
+                    setChatDisabled(true);
+                    break;
+
+                case WSMessageType.ADMIN_DISCONNECTED_FROM_CLIENT:
+                    setShowChat(false);
+                    setChatDisabled(true);
+                    dispatch(setChatMessages([]));
+                    break;
+
+                case WSMessageType.CLIENT_DISCONNECTED_FROM_ADMIN:
+                    // setShowChat(false);
+                    // setChatDisabled(true);
+                    setShowConvo(false);
+
+                    dispatch(removeFromAdminClient(parsed.data));
+                    break;
+
+                case WSMessageType.NEW_CLIENT_ASSIGNED:
+                    const data = parsed.data;
+
+                    dispatch(addAdminClient(data));
+
+                    // setChatDisabled(true);
+                    break;
+
+                case WSMessageType.MESSAGE:
+                    const chatData = parsed.data;
+
+                    if (props.receiverRole === UserRoles.ADMIN) {
+                        const { clientId, ...chat } = chatData;
+                        console.log(
+                            '🚀 ~ file: ChatContainer.tsx:142 ~ React.useEffect ~ chatData',
+                            chatData
+                        );
+                        dispatch(
+                            addAdminChatMessage({
+                                clientId: clientId ?? chat.id,
+                                chat: chat,
+                            })
+                        );
+                    } else {
+                        dispatch(addChatMessage(chatData));
+                    }
+                    break;
+
+                default:
+                    break;
+            }
+
+            // dispatch(addChatMessage(data));
+
+            // setMessages((_messages) => [..._messages, data]);
+        };
+
+        return () => {
+            console.log('Cleaning up...');
+            if (ws.current) {
+                ws.current.send(
+                    parseData(WSMessageType.DISCONNECT, {
+                        id: currentUser?.id ?? '',
+                        role: currentUser?.role ?? '',
+                    })
+                );
+                ws.current.close();
+                ws.current = null;
+            }
+        };
+    }, []);
 
     return (
         <Box
@@ -99,26 +225,41 @@ const ChatContainer = () => {
 
                         {showConvo && (
                             <>
-                                <IconButton
+                                {props.receiverRole === UserRoles.ADMIN && (
+                                    <IconButton
+                                        sx={{
+                                            position: 'absolute',
+                                            left: 12,
+                                            top: 12,
+                                            backgroundColor: '#fefefe',
+                                            borderRadius: 8,
+                                            width: '36px',
+                                            height: '36px',
+                                            '&.MuiButton-root': {
+                                                minWidth: 0,
+                                                padding: 0,
+                                            },
+                                        }}
+                                        onClick={() => {
+                                            setCurrentChatUser(null);
+
+                                            setShowConvo((prev) => !prev);
+                                        }}
+                                    >
+                                        <ArrowBackIcon />
+                                    </IconButton>
+                                )}
+
+                                <Box
                                     sx={{
+                                        fontWeight: '700',
                                         position: 'absolute',
-                                        left: 12,
-                                        top: 12,
-                                        backgroundColor: '#fefefe',
-                                        borderRadius: 8,
-                                        width: '36px',
-                                        height: '36px',
-                                        '&.MuiButton-root': {
-                                            minWidth: 0,
-                                            padding: 0,
-                                        },
+                                        left: 60,
+                                        top: 18,
                                     }}
-                                    onClick={() =>
-                                        setShowConvo((prev) => !prev)
-                                    }
                                 >
-                                    <ArrowBackIcon />
-                                </IconButton>
+                                    {currentChatUser?.email ?? ''}
+                                </Box>
 
                                 <Box
                                     sx={{
@@ -133,17 +274,23 @@ const ChatContainer = () => {
                                         position: 'relative',
                                     }}
                                 >
-                                    {messages.map((msg) => (
+                                    {(props.receiverRole === UserRoles.CLIENT
+                                        ? chatMessages
+                                        : currentAdminChat ?? []
+                                    ).map((msg) => (
                                         // <Box sx={{ width: '360px' }}>
                                         <Box
+                                            key={uuid()}
                                             sx={{
                                                 alignSelf:
-                                                    msg.id % 2
-                                                        ? 'start'
-                                                        : 'end',
+                                                    props.receiverRole ===
+                                                    msg.role
+                                                        ? 'end'
+                                                        : 'start',
 
                                                 backgroundColor:
-                                                    msg.id % 2
+                                                    props.receiverRole ===
+                                                    msg.role
                                                         ? '#6699cc'
                                                         : '#bdbdbd',
                                                 padding: '12px',
@@ -153,7 +300,7 @@ const ChatContainer = () => {
                                                 overflowWrap: 'break-word',
                                             }}
                                         >
-                                            {msg.text}
+                                            {msg.message}
                                         </Box>
                                         // </Box>
                                     ))}
@@ -162,9 +309,6 @@ const ChatContainer = () => {
                                 <TextField
                                     fullWidth
                                     sx={{
-                                        // position: 'absolute',
-                                        // bottom: '8px',
-                                        // margin: '0 auto',
                                         marginLeft: 'auto',
                                         marginRight: 'auto',
                                         width: '100%',
@@ -178,9 +322,21 @@ const ChatContainer = () => {
                                     id='standard-size-normal'
                                     variant='standard'
                                     placeholder='message...'
+                                    value={currentMessage}
+                                    onChange={(e) =>
+                                        dispatch(
+                                            setCurrentMessage(e.target.value)
+                                        )
+                                    }
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            sendMessage();
+                                        }
+                                    }}
                                     InputProps={{
                                         endAdornment: (
                                             <IconButton
+                                                onClick={sendMessage}
                                                 sx={{ color: '#6699cc' }}
                                             >
                                                 <SendIcon />
@@ -191,49 +347,73 @@ const ChatContainer = () => {
                             </>
                         )}
 
-                        {!showConvo && (
-                            <Box
-                                onClick={() => setShowConvo((prev) => !prev)}
-                                sx={{
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    alignItems: 'center',
-                                    padding: '8px 12px',
-                                    borderRadius: 8,
-                                    '&:hover': {
-                                        backgroundColor: '#E0E0E0',
-                                        cursor: 'pointer',
-                                    },
-                                }}
-                            >
-                                <Avatar />
-                                <Box>
-                                    <Box sx={{ fontWeight: '700' }}>
-                                        Nume Complet
-                                    </Box>
-                                    <Box>mesaje bla bla bla</Box>
-                                </Box>
-                                <Box
-                                    sx={{
-                                        backgroundColor: 'red',
-                                        color: '#fff',
-                                        fontSize: 12,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        borderRadius: '50%',
-                                        width: '20px',
-                                        height: '20px',
-                                    }}
-                                >
-                                    12
-                                </Box>
-                            </Box>
-                        )}
+                        {!showConvo &&
+                            props.receiverRole === UserRoles.ADMIN && (
+                                <>
+                                    {!currentAdminClients.length ? (
+                                        <Box>No clients available</Box>
+                                    ) : (
+                                        currentAdminClients.map((item) => (
+                                            <Box
+                                                key={item.id}
+                                                onClick={() => {
+                                                    setCurrentChatUser(item);
+                                                    setShowConvo(
+                                                        (prev) => !prev
+                                                    );
+                                                }}
+                                                sx={{
+                                                    display: 'flex',
+                                                    justifyContent:
+                                                        'space-between',
+                                                    alignItems: 'center',
+                                                    padding: '8px 12px',
+                                                    borderRadius: 8,
+                                                    '&:hover': {
+                                                        backgroundColor:
+                                                            '#E0E0E0',
+                                                        cursor: 'pointer',
+                                                    },
+                                                }}
+                                            >
+                                                <Avatar />
+                                                <Box>
+                                                    <Box
+                                                        sx={{
+                                                            fontWeight: '700',
+                                                        }}
+                                                    >
+                                                        {item.email}
+                                                    </Box>
+                                                </Box>
+                                                <Box
+                                                    sx={{
+                                                        backgroundColor: 'red',
+                                                        color: '#fff',
+                                                        fontSize: 12,
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent:
+                                                            'center',
+                                                        borderRadius: '50%',
+                                                        width: '20px',
+                                                        height: '20px',
+                                                    }}
+                                                >
+                                                    12
+                                                </Box>
+                                            </Box>
+                                        ))
+                                    )}
+                                </>
+                            )}
                     </Box>
                 </ClickAwayListener>
             ) : (
-                <FloatingChatButton onClick={() => setShowChat(true)} />
+                <FloatingChatButton
+                    disabled={chatDisabled}
+                    onClick={() => setShowChat(true)}
+                />
             )}
         </Box>
     );

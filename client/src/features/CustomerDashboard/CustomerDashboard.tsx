@@ -7,16 +7,23 @@ import { DatePicker } from '@mui/x-date-pickers';
 import dayjs, { Dayjs } from 'dayjs';
 import { Bar, BarChart, Cell, Legend, Tooltip, XAxis, YAxis } from 'recharts';
 import { useLazyDeviceConsumptionsQuery } from '../../services/device/device';
-import { Consumption, Device } from '../../services/device/model';
+import { Consumption, Device, UserRoles } from '../../services/device/model';
 import { useUserDevicesQuery } from '../../services/user/user';
 import { useAppDispatch, useAppSelector } from '../../store/store';
 import { logout } from '../../store/user/userSlice';
 import Alert from '../../components/Alert/Alert';
+import {
+    addChatMessage,
+    setWSConnection,
+} from '../../store/general/generalSlice';
+import ChatContainer from '../../components/Chat/ChatContainer/ChatContainer';
 // import { websocket as W3CWebSocket } from 'websocket';
 
 // const client = new W3CWebSocket('ws://127.0.0.1:8111');
 
 const CustomerDashboard = () => {
+    const ws = useAppSelector((state) => state.generalState.wsConnection);
+
     const currentUser = useAppSelector((state) => state.userState.user);
     const clientRef = React.useRef<WebSocket | null>(null);
     const [showAlert, setShowAlert] = React.useState(false);
@@ -227,6 +234,7 @@ const CustomerDashboard = () => {
                     {`Device ${currentAlertDevice.current?.deviceName} has exceeded the maximum hourly consumption! Current consumption: ${currentAlertDevice.current?.currentConsumptionValue} kW`}
                 </Alert>
             </Snackbar>
+            <ChatContainer receiverRole={UserRoles.CLIENT} />
         </>
     );
 };
