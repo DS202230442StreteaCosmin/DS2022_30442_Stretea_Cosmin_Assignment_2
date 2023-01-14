@@ -9,8 +9,9 @@ import {
     IconButton,
     TextField,
 } from '@mui/material';
-import React from 'react';
 import uuid from 'react-uuid';
+
+import React from 'react';
 import { UserRoles } from '../../../services/device/model';
 import {
     addAdminChatMessage,
@@ -394,6 +395,7 @@ const ChatContainer = (props: ChatProps) => {
 
                                 <TextField
                                     fullWidth
+                                    autoComplete='off'
                                     sx={{
                                         marginLeft: 'auto',
                                         marginRight: 'auto',

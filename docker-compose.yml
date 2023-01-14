@@ -54,3 +54,12 @@ services:
         restart: always
         ports:
             - 5672:5672
+
+    chat_server:
+        container_name: chat_server
+        restart: on-failure
+        build: ./chat_server
+        volumes:
+            - ./chat_server:/app/chat_server
+        ports:
+            - '8080:8080'
