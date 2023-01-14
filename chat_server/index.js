@@ -8,6 +8,8 @@ const WSMessageType = {
     NEW_CLIENT_ASSIGNED: 'NEW_CLIENT_ASSIGNED',
     ADMIN_DISCONNECTED_FROM_CLIENT: 'ADMIN_DISCONNECTED_FROM_CLIENT',
     CLIENT_DISCONNECTED_FROM_ADMIN: 'CLIENT_DISCONNECTED_FROM_ADMIN',
+    START_TYPING: 'START_TYPING',
+    END_TYPING: 'END_TYPING',
 };
 
 const parseData = (type, data) => {
@@ -34,11 +36,11 @@ let clientsToAdmin = [];
 
 let newConnection;
 
-function sendMessage(message) {
-    users.forEach((user) => {
-        user.ws.send(JSON.stringify(message));
-    });
-}
+// function sendMessage(message) {
+//     users.forEach((user) => {
+//         user.ws.send(JSON.stringify(message));
+//     });
+// }
 
 server.on('connection', (ws, req) => {
     const newConnectionRef = {
@@ -50,24 +52,16 @@ server.on('connection', (ws, req) => {
     const userId = req.url.split('/')[1];
     const userEmail = req.url.split('/')[2];
     const userRole = req.url.split('/')[3];
-    console.log(
-        '🚀 ~ file: index.js:41 ~ server.on ~ userId',
-        userId,
-        userEmail,
-        userRole
-    );
-
-    if (admins.find((item) => item.id === userId)) {
-        return;
-    }
 
     if (userRole === UserRoles.ADMIN) {
-        admins.push({
-            connection: newConnectionRef,
-            id: userId,
-            email: userEmail,
-            role: userRole,
-        });
+        if (!admins.find((item) => item.id === userId)) {
+            admins.push({
+                connection: newConnectionRef,
+                id: userId,
+                email: userEmail,
+                role: userRole,
+            });
+        }
 
         // let userNotAssigned = false;
 
@@ -84,57 +78,73 @@ server.on('connection', (ws, req) => {
         //     }
         // });
     } else {
-        if (
-            clients.find((item) => item.id === userId) ||
-            clientsToAdmin.find((item) => item.userId === userId)
-        ) {
-            return;
-        }
+        // if (clients.find((item) => item.id === userId)) {
+        //     if (clientsToAdmin.find((item) => item.clientId === userId)) {
+        //         return;
+        //     }
+        // }
 
-        clients.push({
-            connection: newConnectionRef,
-            id: userId,
-            email: userEmail,
-            role: userRole,
-        });
+        if (!clients.find((item) => item.id === userId)) {
+            clients.push({
+                connection: newConnectionRef,
+                id: userId,
+                email: userEmail,
+                role: userRole,
+            });
+        }
 
         if (!admins.length) {
             newConnectionRef.ws.send(
                 parseData(WSMessageType.ADMINS_NOT_AVAILABLE, undefined)
             );
         } else {
-            const randInt = Math.floor(Math.random() * admins.length);
-            console.log(
-                '🚀 ~ file: index.js:95 ~ server.on ~ randInt',
-                randInt
-            );
-            const admin = admins[randInt];
-            console.log('🚀 ~ file: index.js:96 ~ server.on ~ admins', admins);
-            console.log('🚀 ~ file: index.js:96 ~ server.on ~ admin', admin);
+            if (!clientsToAdmin.find((item) => item.clientId === userId)) {
+                const randInt = Math.floor(Math.random() * admins.length);
+                // console.log(
+                //     '🚀 ~ file: index.js:95 ~ server.on ~ randInt',
+                //     randInt
+                // );
+                const admin = admins[randInt];
+                // console.log('🚀 ~ file: index.js:96 ~ server.on ~ admins', admins);
+                // console.log('🚀 ~ file: index.js:96 ~ server.on ~ admin', admin);
 
-            clientsToAdmin.push({
-                adminId: admin.id,
-                clientId: userId,
-            });
+                clientsToAdmin.push({
+                    adminId: admin.id,
+                    clientId: userId,
+                });
 
-            admin.connection.ws.send(
-                parseData(WSMessageType.NEW_CLIENT_ASSIGNED, {
-                    id: userId,
-                    email: userEmail,
-                })
-            );
+                admin.connection.ws.send(
+                    parseData(WSMessageType.NEW_CLIENT_ASSIGNED, {
+                        id: userId,
+                        email: userEmail,
+                    })
+                );
+            }
         }
     }
+
+    console.log(
+        '[!] aici sunt listele ------>',
+        admins,
+        clients,
+        clientsToAdmin
+    );
 
     // conso
 
     // users.add(userRef);
 
     ws.on('message', (message) => {
-        console.log(message);
         try {
             // Parsing the message
             const parsedMessage = JSON.parse(message);
+            console.log('[!] AICI E MESAJU ->', parsedMessage);
+            console.log(
+                '[!] aici sunt listele ------>',
+                admins,
+                clients,
+                clientsToAdmin
+            );
             let info;
 
             switch (parsedMessage.type) {
@@ -172,37 +182,41 @@ server.on('connection', (ws, req) => {
                             (item) => item.id !== parsedMessage.data.id
                         );
                     } else {
-                        console.log(
-                            '🚀 ~ file: index.js:210 ~ ws.on ~ parsedMessage',
-                            parsedMessage
-                        );
-
-                        console.log(
-                            '🚀 ~ file: index.js:179 ~ ws.on ~ clientsToAdmin',
-                            clientsToAdmin
-                        );
-                        const associatedAdminId = clientsToAdmin.find(
+                        const mapAssocAdmin = clientsToAdmin.find(
                             (item) => item.clientId === parsedMessage.data.id
-                        ).adminId;
-
-                        const assocAdmin = admins.find(
-                            (item) => item.id === associatedAdminId
                         );
 
-                        assocAdmin.connection.ws.send(
-                            parseData(
-                                WSMessageType.CLIENT_DISCONNECTED_FROM_ADMIN,
-                                parsedMessage.data.id
-                            )
-                        );
+                        console.log('mapAssocAdmin ', mapAssocAdmin);
+
+                        if (mapAssocAdmin) {
+                            const assocAdmin = admins.find(
+                                (item) => item.id === mapAssocAdmin.adminId
+                            );
+
+                            if (assocAdmin) {
+                                assocAdmin.connection.ws.send(
+                                    parseData(
+                                        WSMessageType.CLIENT_DISCONNECTED_FROM_ADMIN,
+                                        parsedMessage.data.id
+                                    )
+                                );
+                            }
+                        }
 
                         clientsToAdmin = clientsToAdmin.filter(
-                            (item) => item.userId !== parsedMessage.data.id
+                            (item) => item.clientId !== parsedMessage.data.id
                         );
                         clients = clients.filter(
                             (item) => item.id !== parsedMessage.data.id
                         );
                     }
+
+                    console.log(
+                        '[!] aici sunt listele din disconnect ------>',
+                        admins,
+                        clients,
+                        clientsToAdmin
+                    );
 
                     break;
 
@@ -251,6 +265,81 @@ server.on('connection', (ws, req) => {
                             parseData(WSMessageType.MESSAGE, newMsg)
                         );
                     }
+
+                    break;
+
+                case WSMessageType.START_TYPING:
+                    const { from, to } = parsedMessage.data;
+
+                    if (to === undefined) {
+                        const mapObj = clientsToAdmin.find(
+                            (item) => item.clientId === from
+                        );
+
+                        const adminObj = admins.find(
+                            (item) => item.id === mapObj.adminId
+                        );
+
+                        adminObj.connection.ws.send(
+                            parseData(WSMessageType.START_TYPING, {
+                                id: from,
+                                type: UserRoles.ADMIN,
+                            })
+                        );
+
+                        console.log(
+                            '🚀 ~ file: index.js:288 ~ ws.on ~ from',
+                            from
+                        );
+                    } else {
+                        const clientConnection = clients.find(
+                            (item) => item.id === to
+                        ).connection;
+                        //
+
+                        clientConnection.ws.send(
+                            parseData(WSMessageType.START_TYPING, {
+                                id: to,
+                                type: UserRoles.CLIENT,
+                            })
+                        );
+                    }
+
+                    break;
+
+                case WSMessageType.END_TYPING:
+                    const parsedType = parsedMessage.data;
+
+                    if (parsedType.to === undefined) {
+                        const mapObj = clientsToAdmin.find(
+                            (item) => item.clientId === parsedType.from
+                        );
+
+                        const adminObj = admins.find(
+                            (item) => item.id === mapObj.adminId
+                        );
+
+                        adminObj.connection.ws.send(
+                            parseData(WSMessageType.END_TYPING, {
+                                id: parsedType.from,
+                                type: UserRoles.ADMIN,
+                            })
+                        );
+                    } else {
+                        const clientConnection = clients.find(
+                            (item) => item.id === parsedType.to
+                        ).connection;
+                        //
+
+                        clientConnection.ws.send(
+                            parseData(WSMessageType.END_TYPING, {
+                                id: parsedType.to,
+                                type: UserRoles.CLIENT,
+                            })
+                        );
+                    }
+
+                    break;
 
                 default:
                     break;

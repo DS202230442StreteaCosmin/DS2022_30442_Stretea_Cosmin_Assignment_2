@@ -38,12 +38,17 @@ export const generalSlice = createSlice({
     initialState,
     name: 'general',
     reducers: {
+        resetGeneralState: (state) => {
+            return initialState;
+        },
+
         setCurrentMessage: (state, action: PayloadAction<string>) => {
             state.currentMessage = action.payload;
         },
         setChatMessages: (state, action: PayloadAction<ChatMessage[]>) => {
             state.chatMessages = action.payload;
         },
+
         addChatMessage: (state, action: PayloadAction<ChatMessage>) => {
             state.chatMessages.push(action.payload);
         },
@@ -94,4 +99,5 @@ export const {
     addAdminChatMessage,
     addAdminClient,
     removeFromAdminClient,
+    resetGeneralState,
 } = generalSlice.actions;

@@ -23,7 +23,7 @@ const FloatingChatButton = (props: Props) => {
             onClick={props.onClick}
         >
             <QuestionAnswerIcon />
-            <Box
+            {/* <Box
                 sx={{
                     backgroundColor: 'red',
                     color: '#fff',
@@ -37,7 +37,7 @@ const FloatingChatButton = (props: Props) => {
                 }}
             >
                 12
-            </Box>
+            </Box> */}
         </Button>
     );
 };

@@ -19,6 +19,7 @@ import {
     ChatMessage,
     ChatUser,
     removeFromAdminClient,
+    resetGeneralState,
     setChatMessages,
     setCurrentMessage,
 } from '../../../store/general/generalSlice';
@@ -46,12 +47,25 @@ const ChatContainer = (props: ChatProps) => {
     const [showConvo, setShowConvo] = React.useState(
         props.receiverRole === UserRoles.ADMIN ? false : true
     );
+    const currentUser = useAppSelector((state) => state.userState.user);
+
+    const [isMessageEmpty, setIsMessageEmpty] = React.useState(true);
+
+    const [isTyping, setIsTyping] = React.useState<string[]>([]);
+
+    const shouldEnableTypingNotification = isTyping.find(
+        (item) =>
+            item ===
+            (props.receiverRole === UserRoles.ADMIN
+                ? currentChatUser?.id
+                : currentUser?.id)
+    );
+
+    const msgContainerRef = React.useRef<HTMLDivElement>(null);
 
     const currentAdminClients = useAppSelector(
         (state) => state.generalState.adminClients
     );
-
-    const currentUser = useAppSelector((state) => state.userState.user);
 
     const dispatch = useAppDispatch();
 
@@ -64,6 +78,29 @@ const ChatContainer = (props: ChatProps) => {
     );
 
     const ws = React.useRef<WebSocket | null>(null);
+
+    const toggleTyping = (isTyping: boolean) => {
+        if (ws.current) {
+            const data =
+                props.receiverRole === UserRoles.ADMIN
+                    ? {
+                          from: currentUser?.id,
+                          to: currentChatUser?.id,
+                      }
+                    : {
+                          from: currentUser?.id,
+                          to: undefined,
+                      };
+            ws.current.send(
+                parseData(
+                    isTyping
+                        ? WSMessageType.START_TYPING
+                        : WSMessageType.END_TYPING,
+                    data
+                )
+            );
+        }
+    };
 
     const sendMessage = () => {
         if (currentMessage && ws.current) {
@@ -79,8 +116,33 @@ const ChatContainer = (props: ChatProps) => {
                 })
             );
             dispatch(setCurrentMessage(''));
+            setIsMessageEmpty(true);
         }
     };
+
+    const handleScrollTo = () => {
+        if (msgContainerRef && msgContainerRef.current) {
+            msgContainerRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+    };
+
+    React.useEffect(() => {
+        if (!currentUser) return;
+    }, [isTyping, currentUser]);
+
+    React.useEffect(() => {
+        if (!isMessageEmpty) {
+            toggleTyping(true);
+        } else {
+            toggleTyping(false);
+        }
+    }, [isMessageEmpty]);
+
+    React.useEffect(() => {
+        if (shouldEnableTypingNotification) {
+            handleScrollTo();
+        }
+    }, [shouldEnableTypingNotification]);
 
     React.useEffect(() => {
         console.log(currentUser);
@@ -92,15 +154,6 @@ const ChatContainer = (props: ChatProps) => {
 
         ws.current.onopen = () => {
             console.log('Connection opened');
-
-            // ws.current?.send(
-            //     parseData(WSMessageType.CONNECT, {
-            //         id: currentUser?.id ?? '',
-            //         name: currentUser?.name ?? '',
-            //         role: currentUser?.role ?? '',
-            //     })
-            // );
-            // setConnectionOpen(true);
         };
 
         ws.current.onmessage = (event) => {
@@ -116,6 +169,7 @@ const ChatContainer = (props: ChatProps) => {
                     setShowChat(false);
                     setChatDisabled(true);
                     dispatch(setChatMessages([]));
+                    // setIsTyping(prev => prev.filter())
                     break;
 
                 case WSMessageType.CLIENT_DISCONNECTED_FROM_ADMIN:
@@ -124,6 +178,9 @@ const ChatContainer = (props: ChatProps) => {
                     setShowConvo(false);
 
                     dispatch(removeFromAdminClient(parsed.data));
+                    setIsTyping((prev) =>
+                        prev.filter((item) => item !== parsed.data)
+                    );
                     break;
 
                 case WSMessageType.NEW_CLIENT_ASSIGNED:
@@ -152,15 +209,28 @@ const ChatContainer = (props: ChatProps) => {
                     } else {
                         dispatch(addChatMessage(chatData));
                     }
+
+                    handleScrollTo();
+                    break;
+
+                case WSMessageType.START_TYPING:
+                    const newData = parsed.data;
+
+                    setIsTyping((prev) => [...prev, newData.id]);
+
+                    break;
+                case WSMessageType.END_TYPING:
+                    const typeData = parsed.data;
+
+                    setIsTyping((prev) =>
+                        prev.filter((item) => item !== typeData.id)
+                    );
+
                     break;
 
                 default:
                     break;
             }
-
-            // dispatch(addChatMessage(data));
-
-            // setMessages((_messages) => [..._messages, data]);
         };
 
         return () => {
@@ -174,6 +244,7 @@ const ChatContainer = (props: ChatProps) => {
                 );
                 ws.current.close();
                 ws.current = null;
+                dispatch(resetGeneralState());
             }
         };
     }, []);
@@ -269,7 +340,6 @@ const ChatContainer = (props: ChatProps) => {
                                         flexDirection: 'column',
                                         gap: '10px',
                                         overflowY: 'auto',
-                                        // overflowX: 'hidden',
                                         padding: '4px',
                                         position: 'relative',
                                     }}
@@ -278,7 +348,6 @@ const ChatContainer = (props: ChatProps) => {
                                         ? chatMessages
                                         : currentAdminChat ?? []
                                     ).map((msg) => (
-                                        // <Box sx={{ width: '360px' }}>
                                         <Box
                                             key={uuid()}
                                             sx={{
@@ -302,8 +371,25 @@ const ChatContainer = (props: ChatProps) => {
                                         >
                                             {msg.message}
                                         </Box>
-                                        // </Box>
                                     ))}
+                                    {shouldEnableTypingNotification && (
+                                        <Box
+                                            sx={{
+                                                alignSelf: 'start',
+                                                backgroundColor: '#bdbdbd',
+                                                padding: '12px',
+                                                borderRadius: 4,
+                                                color: '#ffff',
+                                                maxWidth: '50%',
+                                                overflowWrap: 'break-word',
+                                                fontWeight: '700',
+                                            }}
+                                        >
+                                            typing...
+                                        </Box>
+                                    )}
+
+                                    <Box ref={msgContainerRef} />
                                 </Box>
 
                                 <TextField
@@ -323,11 +409,14 @@ const ChatContainer = (props: ChatProps) => {
                                     variant='standard'
                                     placeholder='message...'
                                     value={currentMessage}
-                                    onChange={(e) =>
+                                    onChange={(e) => {
+                                        setIsMessageEmpty(
+                                            e.target.value.length === 0
+                                        );
                                         dispatch(
                                             setCurrentMessage(e.target.value)
-                                        )
-                                    }
+                                        );
+                                    }}
                                     onKeyDown={(e) => {
                                         if (e.key === 'Enter') {
                                             sendMessage();
@@ -364,8 +453,8 @@ const ChatContainer = (props: ChatProps) => {
                                                 }}
                                                 sx={{
                                                     display: 'flex',
-                                                    justifyContent:
-                                                        'space-between',
+                                                    justifyContent: 'start',
+                                                    gap: '12px',
                                                     alignItems: 'center',
                                                     padding: '8px 12px',
                                                     borderRadius: 8,
@@ -377,30 +466,12 @@ const ChatContainer = (props: ChatProps) => {
                                                 }}
                                             >
                                                 <Avatar />
-                                                <Box>
-                                                    <Box
-                                                        sx={{
-                                                            fontWeight: '700',
-                                                        }}
-                                                    >
-                                                        {item.email}
-                                                    </Box>
-                                                </Box>
                                                 <Box
                                                     sx={{
-                                                        backgroundColor: 'red',
-                                                        color: '#fff',
-                                                        fontSize: 12,
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        justifyContent:
-                                                            'center',
-                                                        borderRadius: '50%',
-                                                        width: '20px',
-                                                        height: '20px',
+                                                        fontWeight: '700',
                                                     }}
                                                 >
-                                                    12
+                                                    {item.email}
                                                 </Box>
                                             </Box>
                                         ))
